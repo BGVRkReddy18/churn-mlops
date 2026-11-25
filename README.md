@@ -2,6 +2,8 @@
 
 [![CI/CD](https://github.com/BGVRkReddy18/churn-mlops/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/BGVRkReddy18/churn-mlops/actions/workflows/ci-cd.yml)
 
+**🌐 Live demo: https://churn-mlops-j1pi.onrender.com** (project page + live prediction form; API docs at [`/docs`](https://churn-mlops-j1pi.onrender.com/docs)). On the free plan the first visit after an idle period takes about 30–60 seconds.
+
 Predicts which telecom customers are about to leave, and covers the full ML lifecycle:
 **versioned data → tuned & tracked training → quality-gated model registry → containerised API →
 monitoring & drift detection → CI/CD**.
