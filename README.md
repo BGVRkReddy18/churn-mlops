@@ -1,5 +1,7 @@
 # Customer Churn Prediction: End-to-End MLOps
 
+[![CI/CD](https://github.com/BGVRkReddy18/churn-mlops/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/BGVRkReddy18/churn-mlops/actions/workflows/ci-cd.yml)
+
 Predicts which telecom customers are about to leave, and covers the full ML lifecycle:
 **versioned data → tuned & tracked training → quality-gated model registry → containerised API →
 monitoring & drift detection → CI/CD**.
