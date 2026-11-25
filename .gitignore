@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+
+# MLflow (local tracking store)
+mlflow.db
+mlruns/
+mlartifacts/
+
+# Runtime
+logs/
+reports/drift_report.json
+.DS_Store
+
+# Research benchmark data (downloaded on demand by driftlab.datasets)
+data/raw/electricity.arff
+research/results/run.log

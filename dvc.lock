@@ -1,0 +1,118 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: python -m churn.data.ingest
+    deps:
+    - path: src/churn/data/ingest.py
+      hash: md5
+      md5: bc8ec10755e44191afff2dfcb964e942
+      size: 665
+    params:
+      params.yaml:
+        data.url: 
+          https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/master/data/Telco-Customer-Churn.csv
+    outs:
+    - path: data/raw/churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+  prepare:
+    cmd: python -m churn.data.prepare
+    deps:
+    - path: data/raw/churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+    - path: src/churn/data/prepare.py
+      hash: md5
+      md5: 64fb84e492ba1859489a97a94afe7a42
+      size: 2827
+    - path: src/churn/schema.py
+      hash: md5
+      md5: 6bc803f356c3c3da17f55c4dd5f27fdd
+      size: 1155
+    params:
+      params.yaml:
+        data.random_state: 42
+        data.test_size: 0.2
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: ed8859749a4c92aa4bf51f135d8186b2
+      size: 179160
+    - path: data/processed/train.csv
+      hash: md5
+      md5: fc8682452cf5667fe81b25ad2f04b429
+      size: 714789
+  train:
+    cmd: python -m churn.train
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: fc8682452cf5667fe81b25ad2f04b429
+      size: 714789
+    - path: src/churn/features.py
+      hash: md5
+      md5: d5a58c6cb9c2bf10542c8b32dc8b1877
+      size: 3083
+    - path: src/churn/train.py
+      hash: md5
+      md5: 6c613e4c4207db76a22808d671027c56
+      size: 3560
+    params:
+      params.yaml:
+        train:
+          model: hist_gb
+          n_trials: 25
+          cv_folds: 5
+          random_state: 42
+    outs:
+    - path: models/model.joblib
+      hash: md5
+      md5: 88f7cda3725ce34d56a3fd041f47a514
+      size: 110729
+    - path: reports/train_info.json
+      hash: md5
+      md5: 323ca29f738d59b45c2980da2079e5bb
+      size: 352
+  evaluate:
+    cmd: python -m churn.evaluate
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: ed8859749a4c92aa4bf51f135d8186b2
+      size: 179160
+    - path: models/model.joblib
+      hash: md5
+      md5: 88f7cda3725ce34d56a3fd041f47a514
+      size: 110729
+    - path: reports/train_info.json
+      hash: md5
+      md5: 323ca29f738d59b45c2980da2079e5bb
+      size: 352
+    - path: src/churn/evaluate.py
+      hash: md5
+      md5: 12211c89b8792f27835f9f3f6ea22a26
+      size: 5532
+    params:
+      params.yaml:
+        evaluate:
+          min_roc_auc: 0.8
+          registered_model_name: churn-classifier
+    outs:
+    - path: models/metadata.json
+      hash: md5
+      md5: ce04533d22e28e0c5fba07320914fdd1
+      size: 939
+    - path: reports/metrics.json
+      hash: md5
+      md5: 18b89a89502facae86d66b6b787a53d3
+      size: 225
+    - path: reports/plots/confusion_matrix.png
+      hash: md5
+      md5: c1e18ece18f129b223c05b34a26743b0
+      size: 23960
+    - path: reports/plots/roc_curve.png
+      hash: md5
+      md5: 94e7aae4942691b6056067190417a833
+      size: 30993

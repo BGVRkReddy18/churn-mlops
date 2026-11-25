@@ -1,0 +1,111 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # 1. Code quality + unit/API tests
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements/*.txt
+      - run: pip install -r requirements/dev.txt && pip install -e . --no-deps
+      - name: Lint
+        run: |
+          ruff check src tests scripts
+          ruff format --check src tests scripts
+      - name: Tests
+        run: pytest --cov=churn --cov-report=term-missing
+
+  # 2. Reproduce the ML pipeline: ingest -> prepare -> train -> evaluate (+ quality gate)
+  train:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      # Optional: set this secret to log runs to a shared MLflow server instead of a throwaway SQLite file
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements/*.txt
+      - run: pip install -r requirements/train.txt && pip install -e . --no-deps
+      - name: Run DVC pipeline (production only - the research study runs separately)
+        run: dvc repro dvc.yaml
+      - name: Show metrics
+        run: |
+          dvc metrics show reports/metrics.json
+          echo '### Model metrics' >> "$GITHUB_STEP_SUMMARY"
+          dvc metrics show reports/metrics.json --md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model
+          path: |
+            models/model.joblib
+            models/metadata.json
+            reports/
+
+  # 3. Build the image, smoke-test it, push to GitHub Container Registry on main
+  docker:
+    needs: train
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: model
+      - name: Build image
+        run: docker build -f docker/api.Dockerfile -t churn-api:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name api -p 8000:8000 churn-api:ci
+          for i in $(seq 1 30); do curl -sf localhost:8000/health && break; sleep 1; done
+          curl -sf -X POST localhost:8000/predict -H 'Content-Type: application/json' -d '{
+            "gender":"Female","SeniorCitizen":"No","Partner":"Yes","Dependents":"No","tenure":2,
+            "PhoneService":"Yes","MultipleLines":"No","InternetService":"Fiber optic",
+            "OnlineSecurity":"No","OnlineBackup":"No","DeviceProtection":"No","TechSupport":"No",
+            "StreamingTV":"Yes","StreamingMovies":"Yes","Contract":"Month-to-month",
+            "PaperlessBilling":"Yes","PaymentMethod":"Electronic check",
+            "MonthlyCharges":95.5,"TotalCharges":191.0}'
+          docker logs api
+      - name: Push to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/churn-api
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker tag churn-api:ci $IMAGE:${GITHUB_SHA::7}
+          docker tag churn-api:ci $IMAGE:latest
+          docker push $IMAGE:${GITHUB_SHA::7}
+          docker push $IMAGE:latest
+
+  # 4. Deploy (optional): add a RENDER_DEPLOY_HOOK_URL secret to auto-deploy the new image
+  deploy:
+    needs: docker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+    steps:
+      - name: Trigger deployment
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "No RENDER_DEPLOY_HOOK_URL secret set - skipping deploy."
+          else
+            curl -fsS -X POST "$DEPLOY_HOOK"
+          fi

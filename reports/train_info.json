@@ -1,0 +1,14 @@
+{
+  "run_id": "7b2d892ffd7d44a6a9c7a6b7b6d82410",
+  "model_type": "hist_gb",
+  "best_params": {
+    "class_weight": null,
+    "learning_rate": 0.07896186801026692,
+    "max_depth": 3,
+    "max_iter": 100,
+    "min_samples_leaf": 96,
+    "l2_regularization": 4.905556676028766
+  },
+  "cv_roc_auc": 0.8492860083979625,
+  "threshold": 0.2939366603727084
+}

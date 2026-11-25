@@ -1,0 +1,486 @@
+schema: '2.0'
+stages:
+  calibrate:
+    cmd: python -m driftlab.run calibrate
+    deps:
+    - path: ../data/raw/churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+    - path: ../src/driftlab/datasets.py
+      hash: md5
+      md5: 52f9016dcfb70996855a64c872a4ec86
+      size: 3827
+    - path: ../src/driftlab/detectors.py
+      hash: md5
+      md5: ff7efd109fe484506c4aed4fbf155fe6
+      size: 9712
+    - path: ../src/driftlab/scenarios.py
+      hash: md5
+      md5: d5d328d87e4dced23da5001c4136db86
+      size: 4344
+    - path: ../src/driftlab/simulation.py
+      hash: md5
+      md5: 404ab1cdbf2d9f0d8bdf3e3761a0e1d4
+      size: 8244
+    params:
+      config.yaml:
+        telco:
+          n_splits: 10
+          streams_per_split: 5
+          n_batches: 40
+          batch_size: 200
+          onset: 15
+          ramp: 10
+          label_delay: 2
+          scenarios:
+          - subpopulation
+          - inflation
+          - concept
+          - sensor_bug
+          modes:
+          - sudden
+          - gradual
+          calibration:
+            n_streams: 30
+            target_fpr: 0.01
+          sensitivity:
+            streams_per_split: 2
+            severities:
+              subpopulation:
+              - 0.25
+              - 0.5
+              - 1.0
+              - 1.5
+              - 2.5
+              inflation:
+              - 0.02
+              - 0.05
+              - 0.1
+              - 0.25
+              - 0.5
+              concept:
+              - 0.1
+              - 0.2
+              - 0.3
+              - 0.5
+              - 0.7
+              sensor_bug:
+              - 0.02
+              - 0.05
+              - 0.1
+              - 0.25
+              - 1.0
+          retraining:
+            window: 8
+            wait: 3
+            cooldown: 3
+            periodic_every: 10
+            delay_sweep:
+              label_delays:
+              - 0
+              - 5
+              scenarios:
+              - concept-sudden
+              - sensor_bug-sudden
+              - subpopulation-sudden
+    outs:
+    - path: results/thresholds.csv
+      hash: md5
+      md5: de4150cc3219a0ead59f512d027e2a91
+      size: 2799
+  detection:
+    cmd: python -m driftlab.run detection
+    deps:
+    - path: ../data/raw/churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+    - path: ../src/driftlab/datasets.py
+      hash: md5
+      md5: 52f9016dcfb70996855a64c872a4ec86
+      size: 3827
+    - path: ../src/driftlab/detectors.py
+      hash: md5
+      md5: ff7efd109fe484506c4aed4fbf155fe6
+      size: 9712
+    - path: ../src/driftlab/run.py
+      hash: md5
+      md5: 362df7d494f77d0cc8755cc0d83c105d
+      size: 11097
+    - path: ../src/driftlab/scenarios.py
+      hash: md5
+      md5: d5d328d87e4dced23da5001c4136db86
+      size: 4344
+    - path: ../src/driftlab/simulation.py
+      hash: md5
+      md5: 404ab1cdbf2d9f0d8bdf3e3761a0e1d4
+      size: 8244
+    - path: results/thresholds.csv
+      hash: md5
+      md5: de4150cc3219a0ead59f512d027e2a91
+      size: 2799
+    params:
+      config.yaml:
+        telco:
+          n_splits: 10
+          streams_per_split: 5
+          n_batches: 40
+          batch_size: 200
+          onset: 15
+          ramp: 10
+          label_delay: 2
+          scenarios:
+          - subpopulation
+          - inflation
+          - concept
+          - sensor_bug
+          modes:
+          - sudden
+          - gradual
+          calibration:
+            n_streams: 30
+            target_fpr: 0.01
+          sensitivity:
+            streams_per_split: 2
+            severities:
+              subpopulation:
+              - 0.25
+              - 0.5
+              - 1.0
+              - 1.5
+              - 2.5
+              inflation:
+              - 0.02
+              - 0.05
+              - 0.1
+              - 0.25
+              - 0.5
+              concept:
+              - 0.1
+              - 0.2
+              - 0.3
+              - 0.5
+              - 0.7
+              sensor_bug:
+              - 0.02
+              - 0.05
+              - 0.1
+              - 0.25
+              - 1.0
+          retraining:
+            window: 8
+            wait: 3
+            cooldown: 3
+            periodic_every: 10
+            delay_sweep:
+              label_delays:
+              - 0
+              - 5
+              scenarios:
+              - concept-sudden
+              - sensor_bug-sudden
+              - subpopulation-sudden
+    outs:
+    - path: results/detection.csv.gz
+      hash: md5
+      md5: f407cdbdfa36169c92262971b8d78309
+      size: 851936
+  sensitivity:
+    cmd: python -m driftlab.run sensitivity
+    deps:
+    - path: ../data/raw/churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+    - path: ../src/driftlab/datasets.py
+      hash: md5
+      md5: 52f9016dcfb70996855a64c872a4ec86
+      size: 3827
+    - path: ../src/driftlab/detectors.py
+      hash: md5
+      md5: ff7efd109fe484506c4aed4fbf155fe6
+      size: 9712
+    - path: ../src/driftlab/run.py
+      hash: md5
+      md5: 362df7d494f77d0cc8755cc0d83c105d
+      size: 11097
+    - path: ../src/driftlab/scenarios.py
+      hash: md5
+      md5: d5d328d87e4dced23da5001c4136db86
+      size: 4344
+    - path: ../src/driftlab/simulation.py
+      hash: md5
+      md5: 404ab1cdbf2d9f0d8bdf3e3761a0e1d4
+      size: 8244
+    - path: results/thresholds.csv
+      hash: md5
+      md5: de4150cc3219a0ead59f512d027e2a91
+      size: 2799
+    params:
+      config.yaml:
+        telco:
+          n_splits: 10
+          streams_per_split: 5
+          n_batches: 40
+          batch_size: 200
+          onset: 15
+          ramp: 10
+          label_delay: 2
+          scenarios:
+          - subpopulation
+          - inflation
+          - concept
+          - sensor_bug
+          modes:
+          - sudden
+          - gradual
+          calibration:
+            n_streams: 30
+            target_fpr: 0.01
+          sensitivity:
+            streams_per_split: 2
+            severities:
+              subpopulation:
+              - 0.25
+              - 0.5
+              - 1.0
+              - 1.5
+              - 2.5
+              inflation:
+              - 0.02
+              - 0.05
+              - 0.1
+              - 0.25
+              - 0.5
+              concept:
+              - 0.1
+              - 0.2
+              - 0.3
+              - 0.5
+              - 0.7
+              sensor_bug:
+              - 0.02
+              - 0.05
+              - 0.1
+              - 0.25
+              - 1.0
+          retraining:
+            window: 8
+            wait: 3
+            cooldown: 3
+            periodic_every: 10
+            delay_sweep:
+              label_delays:
+              - 0
+              - 5
+              scenarios:
+              - concept-sudden
+              - sensor_bug-sudden
+              - subpopulation-sudden
+    outs:
+    - path: results/sensitivity.csv.gz
+      hash: md5
+      md5: 21657747aba89835d73b335bb43a9661
+      size: 665087
+  retraining:
+    cmd: python -m driftlab.run retraining
+    deps:
+    - path: ../data/raw/churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+    - path: ../src/driftlab/datasets.py
+      hash: md5
+      md5: 52f9016dcfb70996855a64c872a4ec86
+      size: 3827
+    - path: ../src/driftlab/detectors.py
+      hash: md5
+      md5: ff7efd109fe484506c4aed4fbf155fe6
+      size: 9712
+    - path: ../src/driftlab/run.py
+      hash: md5
+      md5: 362df7d494f77d0cc8755cc0d83c105d
+      size: 11097
+    - path: ../src/driftlab/scenarios.py
+      hash: md5
+      md5: d5d328d87e4dced23da5001c4136db86
+      size: 4344
+    - path: ../src/driftlab/simulation.py
+      hash: md5
+      md5: 404ab1cdbf2d9f0d8bdf3e3761a0e1d4
+      size: 8244
+    - path: results/thresholds.csv
+      hash: md5
+      md5: de4150cc3219a0ead59f512d027e2a91
+      size: 2799
+    params:
+      config.yaml:
+        telco:
+          n_splits: 10
+          streams_per_split: 5
+          n_batches: 40
+          batch_size: 200
+          onset: 15
+          ramp: 10
+          label_delay: 2
+          scenarios:
+          - subpopulation
+          - inflation
+          - concept
+          - sensor_bug
+          modes:
+          - sudden
+          - gradual
+          calibration:
+            n_streams: 30
+            target_fpr: 0.01
+          sensitivity:
+            streams_per_split: 2
+            severities:
+              subpopulation:
+              - 0.25
+              - 0.5
+              - 1.0
+              - 1.5
+              - 2.5
+              inflation:
+              - 0.02
+              - 0.05
+              - 0.1
+              - 0.25
+              - 0.5
+              concept:
+              - 0.1
+              - 0.2
+              - 0.3
+              - 0.5
+              - 0.7
+              sensor_bug:
+              - 0.02
+              - 0.05
+              - 0.1
+              - 0.25
+              - 1.0
+          retraining:
+            window: 8
+            wait: 3
+            cooldown: 3
+            periodic_every: 10
+            delay_sweep:
+              label_delays:
+              - 0
+              - 5
+              scenarios:
+              - concept-sudden
+              - sensor_bug-sudden
+              - subpopulation-sudden
+    outs:
+    - path: results/retraining.csv.gz
+      hash: md5
+      md5: 72d117e158be8ee0b5390c27e9d9f2de
+      size: 4239348
+  electricity:
+    cmd: python -m driftlab.run electricity
+    deps:
+    - path: ../src/driftlab/datasets.py
+      hash: md5
+      md5: 52f9016dcfb70996855a64c872a4ec86
+      size: 3827
+    - path: ../src/driftlab/detectors.py
+      hash: md5
+      md5: ff7efd109fe484506c4aed4fbf155fe6
+      size: 9712
+    - path: ../src/driftlab/run.py
+      hash: md5
+      md5: 362df7d494f77d0cc8755cc0d83c105d
+      size: 11097
+    - path: ../src/driftlab/simulation.py
+      hash: md5
+      md5: 404ab1cdbf2d9f0d8bdf3e3761a0e1d4
+      size: 8244
+    params:
+      config.yaml:
+        electricity:
+          seeds: 5
+          batch_size: 336
+          train_batches: 4
+          calibration_batches: 4
+          label_delay: 0
+          calibration:
+            n_streams: 30
+            n_batches: 30
+            target_fpr: 0.01
+          retraining:
+            window: 4
+            wait: 1
+            cooldown: 2
+            periodic_every: 4
+    outs:
+    - path: results/electricity.csv.gz
+      hash: md5
+      md5: fddd9f020a320ee69bc19581501fbdfb
+      size: 112994
+    - path: results/electricity_thresholds.csv
+      hash: md5
+      md5: 1632a29ffa52e35ca469883290d34103
+      size: 953
+  analysis:
+    cmd: python -m driftlab.analysis
+    deps:
+    - path: ../src/driftlab/analysis.py
+      hash: md5
+      md5: 686883412ac342685dab59d7207135fe
+      size: 13483
+    - path: results/detection.csv.gz
+      hash: md5
+      md5: f407cdbdfa36169c92262971b8d78309
+      size: 851936
+    - path: results/electricity.csv.gz
+      hash: md5
+      md5: fddd9f020a320ee69bc19581501fbdfb
+      size: 112994
+    - path: results/retraining.csv.gz
+      hash: md5
+      md5: 72d117e158be8ee0b5390c27e9d9f2de
+      size: 4239348
+    - path: results/sensitivity.csv.gz
+      hash: md5
+      md5: 21657747aba89835d73b335bb43a9661
+      size: 665087
+    - path: results/thresholds.csv
+      hash: md5
+      md5: de4150cc3219a0ead59f512d027e2a91
+      size: 2799
+    outs:
+    - path: results/summary.json
+      hash: md5
+      md5: 3fc32ae0f4511264739bd2ff5d24b5ce
+      size: 1234
+    - path: results/tables
+      hash: md5
+      md5: 5c7fc0229df055c3a572eff0ee58efd7.dir
+      size: 41576
+      nfiles: 34
+  figures:
+    cmd: python -m driftlab.plots
+    deps:
+    - path: ../src/driftlab/plots.py
+      hash: md5
+      md5: e52c22c4d6156e1eedf4b35d8be15b58
+      size: 19731
+    - path: results/summary.json
+      hash: md5
+      md5: 3fc32ae0f4511264739bd2ff5d24b5ce
+      size: 1234
+    - path: results/tables
+      hash: md5
+      md5: 5c7fc0229df055c3a572eff0ee58efd7.dir
+      size: 41576
+      nfiles: 34
+    outs:
+    - path: figures
+      hash: md5
+      md5: f4cae1054dbdabb23e3446e8348b44ab.dir
+      size: 3001561
+      nfiles: 26

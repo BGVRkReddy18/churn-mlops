@@ -1,0 +1,11 @@
+# Render Blueprint: one-click deploy of the prediction API + web page.
+# render.com -> New -> Blueprint -> select this repository.
+services:
+  - type: web
+    name: churn-mlops
+    runtime: docker
+    plan: free
+    dockerfilePath: ./docker/api.Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass   # redeploy on push to main, only after GitHub Actions passes

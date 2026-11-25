@@ -1,0 +1,96 @@
+# Research pipeline (separate from the production pipeline in ../dvc.yaml).
+#   dvc repro research/dvc.yaml          (~45 min on 8 cores)
+stages:
+  calibrate:
+    cmd: python -m driftlab.run calibrate
+    deps:
+      - ../data/raw/churn.csv
+      - ../src/driftlab/datasets.py
+      - ../src/driftlab/detectors.py
+      - ../src/driftlab/scenarios.py
+      - ../src/driftlab/simulation.py
+    params:
+      - config.yaml:
+          - telco
+    outs:
+      - results/thresholds.csv:
+          cache: false
+
+  detection:
+    cmd: python -m driftlab.run detection
+    deps: &sim_deps
+      - ../data/raw/churn.csv
+      - ../src/driftlab/datasets.py
+      - ../src/driftlab/detectors.py
+      - ../src/driftlab/scenarios.py
+      - ../src/driftlab/simulation.py
+      - ../src/driftlab/run.py
+      - results/thresholds.csv
+    params:
+      - config.yaml:
+          - telco
+    outs:
+      - results/detection.csv.gz:
+          cache: false
+
+  sensitivity:
+    cmd: python -m driftlab.run sensitivity
+    deps: *sim_deps
+    params:
+      - config.yaml:
+          - telco
+    outs:
+      - results/sensitivity.csv.gz:
+          cache: false
+
+  retraining:
+    cmd: python -m driftlab.run retraining
+    deps: *sim_deps
+    params:
+      - config.yaml:
+          - telco
+    outs:
+      - results/retraining.csv.gz:
+          cache: false
+
+  electricity:
+    cmd: python -m driftlab.run electricity
+    deps:
+      - ../src/driftlab/datasets.py
+      - ../src/driftlab/detectors.py
+      - ../src/driftlab/simulation.py
+      - ../src/driftlab/run.py
+    params:
+      - config.yaml:
+          - electricity
+    outs:
+      - results/electricity.csv.gz:
+          cache: false
+      - results/electricity_thresholds.csv:
+          cache: false
+
+  analysis:
+    cmd: python -m driftlab.analysis
+    deps:
+      - ../src/driftlab/analysis.py
+      - results/thresholds.csv
+      - results/detection.csv.gz
+      - results/sensitivity.csv.gz
+      - results/retraining.csv.gz
+      - results/electricity.csv.gz
+    outs:
+      - results/tables:
+          cache: false
+    metrics:
+      - results/summary.json:
+          cache: false
+
+  figures:
+    cmd: python -m driftlab.plots
+    deps:
+      - ../src/driftlab/plots.py
+      - results/tables
+      - results/summary.json
+    outs:
+      - figures:
+          cache: false

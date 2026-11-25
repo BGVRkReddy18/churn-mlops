@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Churn MLOps</title>
+<meta name="description" content="End-to-end MLOps system that predicts telecom customer churn, with a research study on when drift should trigger retraining.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M8 20l5-6 4 4 7-9' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --surface-2: #f1f1f7;
+  --text: #15151f;
+  --muted: #5b5b6e;
+  --border: #e3e3ec;
+  --brand: #4f46e5;
+  --brand-ink: #ffffff;
+  --brand-soft: #eceafe;
+  --good: #0f8a5f;
+  --good-soft: #e3f6ee;
+  --bad: #c2410c;
+  --bad-soft: #fdeee4;
+  --warn: #b45309;
+  --bar-a: #4f46e5;
+  --bar-b: #e8590c;
+  --shadow: 0 1px 2px rgba(20,20,40,.06), 0 8px 24px rgba(20,20,40,.06);
+  --radius: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e0e16; --surface: #171722; --surface-2: #1f1f2d; --text: #ececf4; --muted: #a2a2b8;
+    --border: #2c2c3d; --brand: #8b84ff; --brand-ink: #0e0e16; --brand-soft: #25234a;
+    --good: #43c793; --good-soft: #15302a; --bad: #ff8a4c; --bad-soft: #3a2116; --warn: #f5b454;
+    --bar-a: #8b84ff; --bar-b: #ff8a4c; --shadow: 0 1px 2px rgba(0,0,0,.4); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e0e16; --surface: #171722; --surface-2: #1f1f2d; --text: #ececf4; --muted: #a2a2b8;
+  --border: #2c2c3d; --brand: #8b84ff; --brand-ink: #0e0e16; --brand-soft: #25234a;
+  --good: #43c793; --good-soft: #15302a; --bad: #ff8a4c; --bad-soft: #3a2116; --warn: #f5b454;
+  --bar-a: #8b84ff; --bar-b: #ff8a4c; --shadow: 0 1px 2px rgba(0,0,0,.4); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+section { padding: 64px 0; }
+h1, h2, h3 { line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
+.eyebrow { font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); margin-bottom: 8px; }
+.lead { color: var(--muted); font-size: 1.05rem; max-width: 760px; margin: 0 0 28px; }
+
+/* nav */
+nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+nav .wrap { display: flex; align-items: center; gap: 20px; height: 60px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--text); font-size: 1.05rem; }
+.logo:hover { text-decoration: none; }
+.logo-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--brand); display: grid; place-items: center; }
+.navlinks { display: flex; gap: 18px; margin-left: auto; font-size: .92rem; }
+.navlinks a { color: var(--muted); }
+.navlinks a:hover { color: var(--text); text-decoration: none; }
+@media (max-width: 720px) { .navlinks .hide-sm { display: none; } }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 10px; font-weight: 600; font-size: .95rem; border: 1px solid transparent; cursor: pointer; font-family: inherit; }
+.btn:hover { text-decoration: none; }
+.btn-primary { background: var(--brand); color: var(--brand-ink); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn-ghost:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .6; cursor: wait; }
+
+/* hero */
+.hero { padding: 72px 0 56px; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); max-width: 860px; }
+.hero h1 span { color: var(--brand); }
+.hero .lead { font-size: 1.15rem; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 36px; }
+.status { display: inline-flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 5px 12px; border-radius: 999px; margin-bottom: 20px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.dot.ok { background: var(--good); box-shadow: 0 0 0 4px var(--good-soft); }
+.dot.err { background: var(--bad); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+.stat b { display: block; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: .85rem; }
+@media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+/* predictor */
+.predict-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .predict-grid { grid-template-columns: 1fr; } }
+form.card { padding: 22px; }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 18px; font-size: .9rem; color: var(--muted); }
+.chip { border: 1px solid var(--border); background: var(--surface-2); color: var(--text); padding: 6px 12px; border-radius: 999px; cursor: pointer; font: inherit; font-size: .85rem; }
+.chip:hover { border-color: var(--brand); }
+fieldset { border: 0; padding: 0; margin: 0 0 18px; }
+legend { font-weight: 700; font-size: .95rem; margin-bottom: 10px; padding: 0; }
+.fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 640px) { .fields { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 400px) { .fields { grid-template-columns: 1fr; } }
+label { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--muted); font-weight: 600; }
+select, input { font: inherit; font-size: .92rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0; }
+select:focus, input:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-color: transparent; }
+select:disabled, input:disabled { background: var(--surface-2); color: var(--muted); }
+.hint { font-size: .75rem; color: var(--muted); font-weight: 400; }
+.form-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.result { padding: 24px; position: sticky; top: 80px; }
+@media (max-width: 900px) { .result { position: static; } }
+.result-empty { color: var(--muted); text-align: center; padding: 28px 8px; }
+.result-empty svg { opacity: .5; margin-bottom: 8px; }
+.verdict { display: inline-block; font-weight: 700; padding: 6px 12px; border-radius: 999px; font-size: .9rem; margin-bottom: 14px; }
+.verdict.churn { background: var(--bad-soft); color: var(--bad); }
+.verdict.stay { background: var(--good-soft); color: var(--good); }
+.prob { font-size: 3.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.prob-label { color: var(--muted); font-size: .9rem; margin: 6px 0 18px; }
+.meter { position: relative; height: 12px; border-radius: 999px; background: var(--surface-2); overflow: visible; margin-bottom: 8px; }
+.meter-fill { height: 100%; border-radius: 999px; width: 0; transition: width .5s ease; }
+.meter-mark { position: absolute; top: -5px; width: 2px; height: 22px; background: var(--text); }
+.meter-legend { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-bottom: 16px; }
+.explain { font-size: .9rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 14px; margin: 0; }
+.error { color: var(--bad); font-size: .9rem; }
+
+/* comparison */
+.compare { width: 100%; border-collapse: separate; border-spacing: 0; overflow: hidden; }
+.compare th, .compare td { padding: 14px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); font-size: .93rem; }
+.compare thead th { background: var(--surface-2); font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.compare thead th:last-child { color: var(--brand); }
+.compare tbody tr:last-child td { border-bottom: 0; }
+.compare td:first-child { font-weight: 700; white-space: nowrap; }
+.compare td:nth-child(2) { color: var(--muted); }
+.compare td:last-child { background: color-mix(in srgb, var(--brand-soft) 45%, transparent); }
+.compare .tool { display: inline-block; font-size: .75rem; font-weight: 700; color: var(--brand); background: var(--brand-soft); padding: 1px 8px; border-radius: 6px; margin-right: 4px; }
+.table-scroll { overflow-x: auto; border-radius: var(--radius); }
+@media (max-width: 640px) {
+  .compare thead { display: none; }
+  .compare, .compare tbody, .compare tr, .compare td { display: block; width: 100%; }
+  .compare tr { border-bottom: 1px solid var(--border); padding: 6px 0; }
+  .compare td { border: 0; padding: 6px 16px; }
+  .compare td:nth-child(2)::before { content: "Typical project: "; font-weight: 600; }
+  .compare td:last-child::before { content: "This project: "; font-weight: 700; color: var(--brand); }
+}
+
+.uniq { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; }
+@media (max-width: 900px) { .uniq { grid-template-columns: 1fr; } }
+.uniq .card { padding: 20px; box-shadow: none; }
+.uniq .num { font-size: .8rem; font-weight: 800; color: var(--brand); }
+.uniq h3 { font-size: 1.05rem; margin: 6px 0 6px; }
+.uniq p { margin: 0; color: var(--muted); font-size: .93rem; }
+
+/* pipeline */
+.pipeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; counter-reset: step; }
+@media (max-width: 900px) { .pipeline { grid-template-columns: repeat(2, 1fr); } }
+.step { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; position: relative; }
+.step::before { counter-increment: step; content: counter(step); display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); font-weight: 800; font-size: .8rem; margin-bottom: 10px; }
+.step b { display: block; font-size: .95rem; }
+.step span { display: block; color: var(--muted); font-size: .82rem; }
+.step em { display: block; font-style: normal; font-size: .75rem; font-weight: 700; color: var(--brand); margin-top: 6px; }
+
+/* research */
+.research-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .research-grid { grid-template-columns: 1fr; } }
+.chart { padding: 22px; }
+.chart h3 { font-size: 1rem; }
+.chart .sub { color: var(--muted); font-size: .85rem; margin: 0 0 16px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin-bottom: 14px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; margin-bottom: 14px; }
+.row-name { font-size: .85rem; font-weight: 600; }
+.row-name small { display: block; color: var(--muted); font-weight: 400; font-size: .75rem; }
+.bars { display: flex; flex-direction: column; gap: 4px; }
+.bar { display: flex; align-items: center; gap: 8px; font-size: .78rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+.bar div { height: 10px; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar .a { background: var(--bar-a); }
+.bar .b { background: var(--bar-b); }
+.findings { display: flex; flex-direction: column; gap: 12px; }
+.finding { padding: 18px 20px; box-shadow: none; }
+.finding b { display: block; margin-bottom: 4px; }
+.finding p { margin: 0; color: var(--muted); font-size: .92rem; }
+.finding .big { font-size: 1.5rem; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; }
+
+/* stack */
+.stack { display: flex; flex-wrap: wrap; gap: 8px; }
+.stack span { background: var(--surface); border: 1px solid var(--border); padding: 6px 12px; border-radius: 8px; font-size: .88rem; font-weight: 600; }
+
+footer { border-top: 1px solid var(--border); padding: 32px 0 48px; color: var(--muted); font-size: .9rem; }
+footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.alt .card, .alt .step, .alt .stat { background: var(--bg); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="Churn MLOps home">
+      <span class="logo-mark"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 22l7-8 5 5 10-12" stroke="white" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      Churn MLOps
+    </a>
+    <div class="navlinks">
+      <a href="#predict">Try it</a>
+      <a href="#special">What's special</a>
+      <a href="#research" class="hide-sm">Research</a>
+      <a href="/docs" class="hide-sm">API docs</a>
+      <a href="https://github.com/BGVRkReddy18/churn-mlops" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="status"><span class="dot" id="status-dot"></span><span id="status-text">Checking the live model…</span></div>
+    <h1>End-to-End MLOps for <span>Customer Churn Prediction</span></h1>
+    <p class="lead">
+      A production-style machine learning system that predicts which telecom customers are about to
+      leave. It covers the full lifecycle: versioned data, tuned and tracked training, a
+      quality-gated model registry, a containerised API, monitoring and CI/CD. It also includes a
+      research study that tests whether drift alarms should trigger retraining.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#predict">Predict a customer →</a>
+      <a class="btn btn-ghost" href="https://github.com/BGVRkReddy18/churn-mlops" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        View source on GitHub
+      </a>
+      <a class="btn btn-ghost" href="/docs">REST API docs</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="m-auc">0.846</b><span>ROC-AUC on held-out test set</span></div>
+      <div class="stat"><b id="m-recall">77.8%</b><span>of churners caught (recall)</span></div>
+      <div class="stat"><b id="m-thr">0.29</b><span>decision threshold, tuned for F1</span></div>
+      <div class="stat"><b>7,043</b><span>real telecom customers (IBM Telco)</span></div>
+    </div>
+  </div>
+</header>
+
+<section class="alt" id="predict">
+  <div class="wrap">
+    <div class="eyebrow">Live demo</div>
+    <h2>Will this customer leave?</h2>
+    <p class="lead">Fill in a customer profile, or load an example, and the deployed model scores it in real time through the same <code>/predict</code> endpoint that other systems call.</p>
+
+    <div class="predict-grid">
+      <form class="card" id="form" novalidate>
+        <div class="presets">
+          Examples:
+          <button type="button" class="chip" data-preset="risky">🔥 New fibre customer, monthly contract</button>
+          <button type="button" class="chip" data-preset="loyal">🛡️ Long-term two-year customer</button>
+          <button type="button" class="chip" data-preset="mid">⚖️ Mid-tenure DSL customer</button>
+        </div>
+
+        <fieldset>
+          <legend>Customer</legend>
+          <div class="fields">
+            <label>Gender<select name="gender"><option>Female</option><option>Male</option></select></label>
+            <label>Senior citizen<select name="SeniorCitizen"><option>No</option><option>Yes</option></select></label>
+            <label>Partner<select name="Partner"><option>No</option><option>Yes</option></select></label>
+            <label>Dependents<select name="Dependents"><option>No</option><option>Yes</option></select></label>
+            <label>Tenure (months)<input name="tenure" type="number" min="0" max="1000" step="1" required></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Services</legend>
+          <div class="fields">
+            <label>Phone service<select name="PhoneService"><option>Yes</option><option>No</option></select></label>
+            <label>Multiple lines<select name="MultipleLines"><option>No</option><option>Yes</option><option>No phone service</option></select></label>
+            <label>Internet service<select name="InternetService"><option>Fiber optic</option><option>DSL</option><option>No</option></select></label>
+            <label>Online security<select name="OnlineSecurity" class="addon"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+            <label>Online backup<select name="OnlineBackup" class="addon"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+            <label>Device protection<select name="DeviceProtection" class="addon"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+            <label>Tech support<select name="TechSupport" class="addon"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+            <label>Streaming TV<select name="StreamingTV" class="addon"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+            <label>Streaming movies<select name="StreamingMovies" class="addon"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Contract &amp; billing</legend>
+          <div class="fields">
+            <label>Contract<select name="Contract"><option>Month-to-month</option><option>One year</option><option>Two year</option></select></label>
+            <label>Paperless billing<select name="PaperlessBilling"><option>Yes</option><option>No</option></select></label>
+            <label>Payment method<select name="PaymentMethod"><option>Electronic check</option><option>Mailed check</option><option>Bank transfer (automatic)</option><option>Credit card (automatic)</option></select></label>
+            <label>Monthly charges ($)<input name="MonthlyCharges" type="number" min="0" step="0.01" required></label>
+            <label>Total charges ($)<input name="TotalCharges" type="number" min="0" step="0.01" required><span class="hint">≈ tenure × monthly</span></label>
+          </div>
+        </fieldset>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit" id="submit">Predict churn</button>
+          <span class="error" id="error" role="alert"></span>
+        </div>
+      </form>
+
+      <div class="card result" id="result" aria-live="polite">
+        <div class="result-empty" id="result-empty">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+          <div>The prediction appears here.</div>
+        </div>
+        <div id="result-body" hidden>
+          <span class="verdict" id="verdict"></span>
+          <div class="prob" id="prob"></div>
+          <div class="prob-label">predicted probability of churning</div>
+          <div class="meter"><div class="meter-fill" id="meter-fill"></div><div class="meter-mark" id="meter-mark" title="decision threshold"></div></div>
+          <div class="meter-legend"><span>0%</span><span id="thr-label"></span><span>100%</span></div>
+          <p class="explain" id="explain"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="special">
+  <div class="wrap">
+    <div class="eyebrow">What makes it different</div>
+    <h2>Not just a model in a notebook</h2>
+    <p class="lead">Most churn projects stop at a trained model and an accuracy score. This one treats the model as a production system, then asks a research question that most MLOps tutorials never test.</p>
+
+    <div class="card table-scroll">
+      <table class="compare">
+        <thead><tr><th>Concern</th><th>Typical student project</th><th>This project</th></tr></thead>
+        <tbody>
+          <tr><td>Workflow</td><td>One Jupyter notebook run by hand</td><td><span class="tool">DVC</span> 4-stage pipeline (ingest → validate → train → evaluate). Every parameter lives in <code>params.yaml</code>, and only stages that changed re-run.</td></tr>
+          <tr><td>Data quality</td><td>Assumes the CSV is clean</td><td>Schema validation that fails fast on bad data, plus one <code>schema.py</code> shared by training and the API, so there is no train/serve skew.</td></tr>
+          <tr><td>Training</td><td>Default hyperparameters, threshold 0.5</td><td><span class="tool">Optuna</span> search with 5-fold CV over 3 model families. The decision threshold is tuned on out-of-fold predictions, so the test set never leaks.</td></tr>
+          <tr><td>Tracking</td><td>Results copied into a report</td><td><span class="tool">MLflow</span> logs every trial and stores the model in a registry. A quality gate blocks weak models, and only a model at least as good as the current one becomes <code>@champion</code>.</td></tr>
+          <tr><td>Serving</td><td>None, or a Flask demo</td><td><span class="tool">FastAPI</span> with strictly typed inputs, batch prediction and health checks, packaged in a multi-stage, non-root <span class="tool">Docker</span> image.</td></tr>
+          <tr><td>Monitoring</td><td>None</td><td><span class="tool">Prometheus</span> + <span class="tool">Grafana</span> dashboard (traffic, latency, errors, prediction mix), with every prediction logged for PSI data-drift checks.</td></tr>
+          <tr><td>Automation</td><td>None</td><td><span class="tool">GitHub Actions</span> runs lint, 40+ tests, retraining, a Docker smoke test and a registry push, then deploys this site automatically.</td></tr>
+          <tr><td>Research</td><td>None</td><td>A controlled study with statistical tests (Friedman, Nemenyi, Wilcoxon-Holm): <a href="#research">do drift alarms really tell you when to retrain?</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="uniq">
+      <div class="card"><div class="num">01 · RIGOUR</div><h3>Experiments, not anecdotes</h3><p>7 detectors × 10 retraining policies × 9 drift scenarios, each repeated 50 times on new data splits and models, then validated on a real dataset with natural drift.</p></div>
+      <div class="card"><div class="num">02 · A SURPRISING FINDING</div><h3>Standard practice can backfire</h3><p>Retraining whenever input drift is detected (the common MLOps default) made the churn model <em>worse</em> than never retraining.</p></div>
+      <div class="card"><div class="num">03 · APPLIED BACK</div><h3>Findings shape the system</h3><p>The research directly informs this system's monitoring design: PSI as a data-quality alarm, retraining gated on measured performance, and a promotion gate.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="pipeline">
+  <div class="wrap">
+    <div class="eyebrow">Architecture</div>
+    <h2>From raw CSV to this live page</h2>
+    <p class="lead">Every push to GitHub runs the whole chain automatically. If a step fails, for example the model scores below ROC-AUC 0.80, nothing is deployed.</p>
+    <div class="pipeline">
+      <div class="step"><b>Ingest &amp; validate</b><span>download, clean, schema checks, stratified split</span><em>DVC</em></div>
+      <div class="step"><b>Train &amp; tune</b><span>25 Optuna trials, 5-fold CV, F1-optimal threshold</span><em>Optuna · scikit-learn</em></div>
+      <div class="step"><b>Evaluate &amp; gate</b><span>test metrics, quality gate, champion promotion</span><em>MLflow Registry</em></div>
+      <div class="step"><b>Package</b><span>multi-stage image, smoke-tested in CI</span><em>Docker · GHCR</em></div>
+      <div class="step"><b>Serve</b><span>typed REST API and this web page</span><em>FastAPI · Render</em></div>
+      <div class="step"><b>Monitor</b><span>metrics, dashboards, PSI drift report</span><em>Prometheus · Grafana</em></div>
+    </div>
+  </div>
+</section>
+
+<section id="research">
+  <div class="wrap">
+    <div class="eyebrow">Research study</div>
+    <h2>When should a production model be retrained?</h2>
+    <p class="lead">MLOps tools usually alert, or retrain automatically, when the input data drifts. We tested that chain of assumptions under controlled drift on this churn model, with every detector calibrated to the same 1% false-alarm rate.</p>
+
+    <div class="research-grid">
+      <div class="card chart">
+        <h3>What drift monitors detect ≠ what hurts the model</h3>
+        <p class="sub">Damage to the model compared with how often the industry-standard PSI monitor raised an alarm (50 runs per scenario).</p>
+        <div class="legend"><span><i style="background:var(--bar-b)"></i>model damage (ROC-AUC lost)</span><span><i style="background:var(--bar-a)"></i>PSI detection rate</span></div>
+        <div id="harm-chart"></div>
+      </div>
+
+      <div class="findings">
+        <div class="card finding"><span class="big">−0.33 AUC</span><b>Concept drift is invisible to input monitors</b><p>When customer behaviour changes but their profile doesn't, the model drops to coin-flip accuracy and PSI, KS, MMD and the classifier test all stay silent.</p></div>
+        <div class="card finding"><span class="big">Worse than static</span><b>Retraining on input-drift alarms backfired</b><p>It reacted to harmless shifts and threw away training data. Triggering on a measured drop in AUC matched a perfectly timed oracle with 77% fewer retrains than a fixed schedule.</p></div>
+        <div class="card finding"><span class="big">−64% retrains</span><b>On real drift, the right trigger saves cost</b><p>On the Elec2 electricity market data, a calibrated KS-test trigger was statistically tied with retraining every week (p = 0.59) while retraining 64% less often.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="stack">
+  <div class="wrap">
+    <div class="eyebrow">Tech stack</div>
+    <h2>Built with</h2>
+    <div class="stack">
+      <span>Python 3.12</span><span>scikit-learn</span><span>Optuna</span><span>DVC</span><span>MLflow</span><span>FastAPI</span><span>Pydantic</span><span>Docker</span><span>Prometheus</span><span>Grafana</span><span>GitHub Actions</span><span>pytest</span><span>ruff</span><span>Render</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span><b>Churn MLOps</b>: End-to-End MLOps for Customer Churn Prediction · M.Tech project</span>
+    <span><a href="https://github.com/BGVRkReddy18/churn-mlops" target="_blank" rel="noopener">GitHub</a> · <a href="/docs">API docs</a> · <a href="/health">Health</a></span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const form = $("#form");
+  const ADDONS = [...form.querySelectorAll("select.addon")];
+  let threshold = 0.29;
+
+  const PRESETS = {
+    risky: { gender: "Female", SeniorCitizen: "No", Partner: "No", Dependents: "No", tenure: 2,
+      PhoneService: "Yes", MultipleLines: "No", InternetService: "Fiber optic",
+      OnlineSecurity: "No", OnlineBackup: "No", DeviceProtection: "No", TechSupport: "No",
+      StreamingTV: "Yes", StreamingMovies: "Yes", Contract: "Month-to-month",
+      PaperlessBilling: "Yes", PaymentMethod: "Electronic check", MonthlyCharges: 95.5, TotalCharges: 191 },
+    loyal: { gender: "Male", SeniorCitizen: "No", Partner: "Yes", Dependents: "Yes", tenure: 64,
+      PhoneService: "Yes", MultipleLines: "Yes", InternetService: "DSL",
+      OnlineSecurity: "Yes", OnlineBackup: "Yes", DeviceProtection: "Yes", TechSupport: "Yes",
+      StreamingTV: "No", StreamingMovies: "No", Contract: "Two year",
+      PaperlessBilling: "No", PaymentMethod: "Bank transfer (automatic)", MonthlyCharges: 70.2, TotalCharges: 4492.8 },
+    mid: { gender: "Female", SeniorCitizen: "No", Partner: "Yes", Dependents: "No", tenure: 18,
+      PhoneService: "Yes", MultipleLines: "No", InternetService: "DSL",
+      OnlineSecurity: "No", OnlineBackup: "Yes", DeviceProtection: "No", TechSupport: "No",
+      StreamingTV: "Yes", StreamingMovies: "No", Contract: "One year",
+      PaperlessBilling: "Yes", PaymentMethod: "Credit card (automatic)", MonthlyCharges: 64.0, TotalCharges: 1152 },
+  };
+
+  function syncDependencies() {
+    const noNet = form.InternetService.value === "No";
+    ADDONS.forEach((s) => {
+      if (noNet) { s.value = "No internet service"; s.disabled = true; }
+      else { s.disabled = false; if (s.value === "No internet service") s.value = "No"; }
+      [...s.options].forEach((o) => { if (o.value === "No internet service") o.hidden = !noNet; });
+    });
+    const noPhone = form.PhoneService.value === "No";
+    const ml = form.MultipleLines;
+    if (noPhone) { ml.value = "No phone service"; ml.disabled = true; }
+    else { ml.disabled = false; if (ml.value === "No phone service") ml.value = "No"; }
+    [...ml.options].forEach((o) => { if (o.value === "No phone service") o.hidden = !noPhone; });
+  }
+
+  let totalTouched = false;
+  function suggestTotal() {
+    if (totalTouched) return;
+    const t = parseFloat(form.tenure.value), m = parseFloat(form.MonthlyCharges.value);
+    if (!isNaN(t) && !isNaN(m)) form.TotalCharges.value = (t * m).toFixed(2);
+  }
+
+  function load(p) {
+    for (const [k, v] of Object.entries(p)) form[k].value = v;
+    totalTouched = false;
+    syncDependencies();
+  }
+
+  form.InternetService.addEventListener("change", syncDependencies);
+  form.PhoneService.addEventListener("change", syncDependencies);
+  form.tenure.addEventListener("input", suggestTotal);
+  form.MonthlyCharges.addEventListener("input", suggestTotal);
+  form.TotalCharges.addEventListener("input", () => { totalTouched = true; });
+  document.querySelectorAll("[data-preset]").forEach((b) =>
+    b.addEventListener("click", () => { load(PRESETS[b.dataset.preset]); form.requestSubmit(); }));
+
+  function payload() {
+    const body = {};
+    for (const el of form.elements) {
+      if (!el.name) continue;
+      body[el.name] = el.type === "number" ? Number(el.value) : el.value;  // disabled fields included
+    }
+    body.tenure = Math.round(body.tenure);
+    return body;
+  }
+
+  function validate(b) {
+    if (form.tenure.value === "" || b.tenure < 0) return "Tenure must be 0 or more months.";
+    if (form.MonthlyCharges.value === "" || b.MonthlyCharges < 0) return "Monthly charges must be 0 or more.";
+    if (form.TotalCharges.value === "" || b.TotalCharges < 0) return "Total charges must be 0 or more.";
+    return "";
+  }
+
+  function render(r, b) {
+    const p = r.churn_probability, thr = r.threshold;
+    $("#result-empty").hidden = true;
+    $("#result-body").hidden = false;
+    const v = $("#verdict");
+    v.className = "verdict " + (r.churn ? "churn" : "stay");
+    v.textContent = r.churn ? "⚠️ Likely to churn" : "✅ Likely to stay";
+    $("#prob").textContent = (p * 100).toFixed(1) + "%";
+    const fill = $("#meter-fill");
+    fill.style.background = r.churn ? "var(--bad)" : "var(--good)";
+    fill.style.width = "0";
+    void fill.offsetWidth;  // restart the CSS transition without relying on requestAnimationFrame
+    fill.style.width = Math.max(1, p * 100) + "%";
+    $("#meter-mark").style.left = `calc(${thr * 100}% - 1px)`;
+    $("#thr-label").textContent = "threshold " + (thr * 100).toFixed(0) + "%";
+    const margin = Math.abs(p - thr);
+    const strength = margin > 0.3 ? "well" : margin > 0.1 ? "clearly" : "just";
+    $("#explain").textContent = r.churn
+      ? `The score is ${strength} above the ${(thr * 100).toFixed(0)}% decision threshold, so this customer should be prioritised for retention outreach. The threshold is set low on purpose: missing a churner costs more than an unnecessary call.`
+      : `The score is ${strength} below the ${(thr * 100).toFixed(0)}% decision threshold, so this customer is not flagged for retention outreach.`;
+    $("#explain").textContent += ` Model version ${r.model_version}.`;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const b = payload(), err = validate(b);
+    $("#error").textContent = err;
+    if (err) return;
+    const btn = $("#submit");
+    btn.disabled = true; btn.textContent = "Scoring…";
+    try {
+      const res = await fetch("/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const d = Array.isArray(data.detail) ? data.detail.map((x) => `${x.loc?.at(-1)}: ${x.msg}`).join("; ") : (data.detail || res.statusText);
+        throw new Error(d);
+      }
+      render(data, b);
+    } catch (ex) {
+      $("#error").textContent = "Prediction failed: " + ex.message;
+    } finally {
+      btn.disabled = false; btn.textContent = "Predict churn";
+    }
+  });
+
+  // research chart (values from research/results/tables)
+  const HARM = [
+    { name: "Concept drift", note: "behaviour changes", harm: 0.331, psi: 0.14 },
+    { name: "Subpopulation", note: "new customer mix", harm: 0.042, psi: 1.0 },
+    { name: "Data-pipeline bug", note: "tenure in days", harm: 0.030, psi: 1.0 },
+    { name: "Price inflation", note: "charges +25%", harm: 0.007, psi: 1.0 },
+  ];
+  const maxHarm = 0.35;
+  $("#harm-chart").innerHTML = HARM.map((h) => `
+    <div class="row">
+      <div class="row-name">${h.name}<small>${h.note}</small></div>
+      <div class="bars">
+        <div class="bar"><div class="b" style="width:${(h.harm / maxHarm) * 75}%"></div>−${h.harm.toFixed(3)} AUC</div>
+        <div class="bar"><div class="a" style="width:${h.psi * 75}%"></div>${Math.round(h.psi * 100)}% detected</div>
+      </div>
+    </div>`).join("");
+
+  // live status + metrics
+  fetch("/model-info").then((r) => r.ok ? r.json() : Promise.reject(r.status)).then((m) => {
+    $("#status-dot").className = "dot ok";
+    $("#status-text").textContent = `Live · model v${m.model_version} (${m.model_type.replace("_", " ")}) loaded`;
+    const mt = m.metrics || {};
+    if (mt.test_roc_auc) $("#m-auc").textContent = mt.test_roc_auc.toFixed(3);
+    if (mt.test_recall) $("#m-recall").textContent = (mt.test_recall * 100).toFixed(1) + "%";
+    if (m.threshold) { threshold = m.threshold; $("#m-thr").textContent = m.threshold.toFixed(2); }
+  }).catch(() => {
+    $("#status-dot").className = "dot err";
+    $("#status-text").textContent = "Model service is starting… refresh in a few seconds";
+  });
+
+  load(PRESETS.risky);
+})();
+</script>
+</body>
+</html>

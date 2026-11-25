@@ -1,0 +1,10 @@
+# Runtime dependencies of the prediction API (kept minimal for a small Docker image)
+fastapi==0.165.0
+uvicorn==0.54.0
+pydantic==2.14.4
+pandas==3.1.1
+numpy==2.5.5
+scikit-learn==1.9.1   # must match the version the model was trained with
+joblib==1.6.0
+prometheus-fastapi-instrumentator==8.1.0
+prometheus-client==0.26.0

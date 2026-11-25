@@ -1,0 +1,56 @@
+{
+  "exp1_friedman_detection_auc": {
+    "n_blocks": 400,
+    "k": 7,
+    "friedman_chi2": 399.97116052814465,
+    "friedman_p": 2.8358064533578497e-83,
+    "nemenyi_cd": 0.45046719081415904,
+    "avg_rank": {
+      "PSI": 3.311,
+      "KS": 3.388,
+      "MMD": 3.501,
+      "C2ST": 3.504,
+      "PredDrift": 4.236,
+      "DDM": 4.836,
+      "PerfDrop": 5.224
+    }
+  },
+  "exp2_friedman_auc_post": {
+    "n_blocks": 450,
+    "k": 10,
+    "friedman_chi2": 331.9534594095934,
+    "friedman_p": 4.275060766623556e-66,
+    "nemenyi_cd": 0.638632381357631,
+    "avg_rank": {
+      "PerfDrop": 4.43,
+      "DDM": 4.492,
+      "oracle": 4.764,
+      "static": 4.801,
+      "PredDrift": 5.796,
+      "C2ST": 5.811,
+      "MMD": 5.906,
+      "KS": 6.061,
+      "PSI": 6.161,
+      "periodic": 6.778
+    }
+  },
+  "exp4_friedman_accuracy": {
+    "n_blocks": 126,
+    "k": 10,
+    "friedman_chi2": 264.9938801748517,
+    "friedman_p": 6.775210480396965e-52,
+    "nemenyi_cd": 1.206901757332324,
+    "avg_rank": {
+      "always": 4.171,
+      "KS": 4.266,
+      "C2ST": 4.575,
+      "PredDrift": 4.845,
+      "PSI": 4.925,
+      "periodic": 4.988,
+      "MMD": 5.214,
+      "DDM": 6.234,
+      "PerfDrop": 7.254,
+      "static": 8.528
+    }
+  }
+}

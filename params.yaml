@@ -1,0 +1,17 @@
+data:
+  url: https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/master/data/Telco-Customer-Churn.csv
+  test_size: 0.2
+  random_state: 42
+
+train:
+  model: hist_gb        # one of: logreg | random_forest | hist_gb
+  n_trials: 25          # Optuna hyperparameter-search trials
+  cv_folds: 5
+  random_state: 42
+
+evaluate:
+  min_roc_auc: 0.80     # quality gate: below this the pipeline fails
+  registered_model_name: churn-classifier
+
+mlflow:
+  experiment_name: churn-prediction

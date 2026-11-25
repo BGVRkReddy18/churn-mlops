@@ -1,0 +1,58 @@
+stages:
+  ingest:
+    cmd: python -m churn.data.ingest
+    deps:
+      - src/churn/data/ingest.py
+    params:
+      - data.url
+    outs:
+      - data/raw/churn.csv
+
+  prepare:
+    cmd: python -m churn.data.prepare
+    deps:
+      - src/churn/data/prepare.py
+      - src/churn/schema.py
+      - data/raw/churn.csv
+    params:
+      - data.test_size
+      - data.random_state
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+
+  train:
+    cmd: python -m churn.train
+    deps:
+      - src/churn/train.py
+      - src/churn/features.py
+      - data/processed/train.csv
+    params:
+      - train
+    outs:
+      # cache: false -> versioned in git, so the deploy platform can build the image
+      - models/model.joblib:
+          cache: false
+      - reports/train_info.json:
+          cache: false
+
+  evaluate:
+    cmd: python -m churn.evaluate
+    deps:
+      - src/churn/evaluate.py
+      - models/model.joblib
+      - reports/train_info.json
+      - data/processed/test.csv
+    params:
+      - evaluate
+    outs:
+      - models/metadata.json:
+          cache: false
+    metrics:
+      - reports/metrics.json:
+          cache: false
+    plots:
+      - reports/plots/confusion_matrix.png:
+          cache: false
+      - reports/plots/roc_curve.png:
+          cache: false

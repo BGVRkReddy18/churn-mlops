@@ -1,0 +1,50 @@
+# Experimental protocol for the drift-detection / retraining study.
+n_jobs: 7
+
+telco:
+  n_splits: 10              # outer repetitions: new split + newly trained model each time
+  streams_per_split: 5      # independent streams per split  -> 50 runs per condition
+  n_batches: 40
+  batch_size: 200
+  onset: 15                 # drift starts at batch 15
+  ramp: 10                  # gradual drift reaches full strength after 10 batches
+  label_delay: 2            # labels arrive 2 batches after prediction
+  scenarios: [subpopulation, inflation, concept, sensor_bug]
+  modes: [sudden, gradual]
+
+  calibration:
+    n_streams: 30           # clean streams from the held-out calibration pool
+    target_fpr: 0.01        # per-batch false-positive rate all detectors are calibrated to
+
+  sensitivity:              # Exp 3: drift magnitude sweep (sudden drift)
+    streams_per_split: 2
+    severities:
+      subpopulation: [0.25, 0.5, 1.0, 1.5, 2.5]
+      inflation: [0.02, 0.05, 0.1, 0.25, 0.5]
+      concept: [0.1, 0.2, 0.3, 0.5, 0.7]
+      sensor_bug: [0.02, 0.05, 0.1, 0.25, 1.0]
+
+  retraining:               # Exp 2: drift-triggered retraining policies
+    window: 8               # retrain on the last 8 labelled batches (1,600 rows)
+    wait: 3                 # after an alarm, collect 3 labelled batches of the new regime
+    cooldown: 3
+    periodic_every: 10
+    delay_sweep:            # Exp 2b: effect of label delay
+      label_delays: [0, 5]
+      scenarios: [concept-sudden, sensor_bug-sudden, subpopulation-sudden]
+
+electricity:                # Exp 4: real-world drift
+  seeds: 5
+  batch_size: 336           # one week (7 days x 48 half-hour periods)
+  train_batches: 4          # weeks 0-3 train the initial model
+  calibration_batches: 4    # weeks 4-7 calibrate thresholds
+  label_delay: 0            # price direction is known after the period ends
+  calibration:
+    n_streams: 30
+    n_batches: 30
+    target_fpr: 0.01
+  retraining:
+    window: 4
+    wait: 1
+    cooldown: 2
+    periodic_every: 4
